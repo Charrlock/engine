@@ -19,6 +19,10 @@ class BoardState():
         self.black_king_location = (0, 4)
         self.checkmate = False
         self.stalemate = False
+        self.enpassant_possible = False
+        self.current_castling_right = CastlingRights(True, True, True, True)
+        self.castle_rights_log = [CastlingRights(self.current_castling_right.wks, self.current_castling_right.bks,
+                                                 self.current_castling_right.wqs, self.current_castling_right.bqs)]
 
     def make_move(self, move):
         self.board[move.start_row][move.start_column] = "_"
@@ -30,6 +34,32 @@ class BoardState():
         elif move.piece_moved == "k":
             self.black_king_location = (move.end_row, move.end_column)
 
+        if move.is_pawn_promotion:
+            if move.end_row == 7:
+                self.board[move.end_row][move.end_column] = "q"
+            else:
+                self.board[move.end_row][move.end_column] = "Q"
+
+        if move.is_enpassant_move:
+            self.board[move.start_row][move.end_column] = "_"
+
+        if (move.piece_moved == "p" or move.piece_moved == "P") and abs(move.start_row - move.end_row) == 2:
+            self.enpassant_possible = ((move.start_row + move.end_row) // 2, move.end_column)
+        else:
+            self.enpassant_possible = ()
+
+        if move.is_castle_move:
+            if move.end_column - move.start_column == 2:
+                self.board[move.end_row][move.end_column-1] = self.board[move.end_row][move.end_column+1]
+                self.board[move.end_row][move.end_column+1] = "_"
+            else:
+                self.board[move.end_row][move.end_column+1] = self.board[move.end_row][move.end_column-2]
+                self.board[move.end_row][move.end_column-2] = "_"
+
+        self.update_castle_rights(move)
+        self.castle_rights_log.append(CastlingRights(self.current_castling_right.wks, self.current_castling_right.bks,
+                                                     self.current_castling_right.wqs, self.current_castling_right.bqs))
+
     def undo_move(self):
         if len(self.moveLog) != 0:
             move = self.moveLog.pop()
@@ -40,10 +70,56 @@ class BoardState():
                 self.white_king_location = (move.start_row, move.start_column)
             elif move.piece_moved == "k":
                 self.black_king_location = (move.start_row, move.start_column)
+            if move.is_enpassant_move:
+                self.board[move.end_row][move.end_column] = "_"
+                self.board[move.start_row][move.end_column] = move.piece_captured
+                self.enpassant_possible = (move.end_row, move.end_column)
+            if (move.piece_moved == "p" or move.piece_moved == "P") and abs(move.start_row - move.end_row) == 2:
+                self.enpassant_possible = ()
+
+            self.castle_rights_log.pop()
+            self.current_castling_right = self.castle_rights_log[-1]
+            if move.is_castle_move:
+                if move.end_column - move.start_column == 2:
+                    self.board[move.end_row][move.end_column+1] = self.board[move.end_row][move.end_column-1]
+                    self.board[move.end_row][move.end_column-1] = "_"
+                else:
+                    self.board[move.end_row][move.end_column-2] = self.board[move.end_row][move.end_column+1]
+                    self.board[move.end_row][move.end_column + 1] = "_"
+
+    def update_castle_rights(self, move):
+        if move.piece_moved == "K":
+            self.current_castling_right.wks = False
+            self.current_castling_right.wqs = False
+        elif move.piece_moved == "k":
+            self.current_castling_right.bks = False
+            self.current_castling_right.bqs = False
+        elif move.piece_moved == "R":
+            if move.start_row == 7:
+                if move.start_column == 0:
+                    self.current_castling_right.wqs = False
+                elif move.start_column == 7:
+                    self.current_castling_right.wks = False
+        elif move.piece_moved == "r":
+            if move.start_row == 0:
+                if move.start_column == 0:
+                    self.current_castling_right.bqs = False
+                elif move.start_column == 7:
+                    self.current_castling_right.bks = False
 
     def get_valid_moves(self):
+        for log in self.castle_rights_log:
+            print(log.wks, log.bks, log.wqs, log.bqs, end=", ")
+        print()
+        temp_enpassant_possible = self.enpassant_possible
+        temp_castle_rights = CastlingRights(self.current_castling_right.wks, self.current_castling_right.bks,
+                                            self.current_castling_right.wqs, self.current_castling_right.bqs)
         moves = self.get_all_possible_moves()
-        for i in range(len(moves)-1, -1, -1):
+        if self.whiteToMove:
+            self.get_castle_moves(self.white_king_location[0], self.white_king_location[1], moves)
+        else:
+            self.get_castle_moves(self.black_king_location[0], self.black_king_location[1], moves)
+        for i in range(len(moves) - 1, -1, -1):
             self.make_move(moves[i])
             self.whiteToMove = not self.whiteToMove
             if self.in_check():
@@ -58,7 +134,8 @@ class BoardState():
         else:
             self.checkmate = False
             self.stalemate = False
-
+        self.enpassant_possible = temp_enpassant_possible
+        self.current_castling_right = temp_castle_rights
         return moves
 
     def in_check(self):
@@ -105,9 +182,13 @@ class BoardState():
             if column - 1 >= 0:
                 if self.board[row - 1][column - 1].islower():
                     moves.append(Move((row, column), (row - 1, column - 1), self.board))
+                elif (row - 1, column - 1) == self.enpassant_possible:
+                    moves.append(Move((row, column), (row - 1, column - 1), self.board, is_enpassant_move=True))
             if column + 1 <= 7:
                 if self.board[row - 1][column + 1].islower():
                     moves.append(Move((row, column), (row - 1, column + 1), self.board))
+                elif (row - 1, column + 1) == self.enpassant_possible:
+                    moves.append(Move((row, column), (row - 1, column + 1), self.board, is_enpassant_move=True))
         else:
             if self.board[row + 1][column] == "_":
                 moves.append(Move((row, column), (row + 1, column), self.board))
@@ -116,9 +197,13 @@ class BoardState():
             if column - 1 >= 0:
                 if self.board[row + 1][column - 1].isupper():
                     moves.append(Move((row, column), (row + 1, column - 1), self.board))
+                elif (row + 1, column - 1) == self.enpassant_possible:
+                    moves.append(Move((row, column), (row + 1, column - 1), self.board, is_enpassant_move=True))
             if column + 1 <= 7:
                 if self.board[row + 1][column + 1].isupper():
                     moves.append(Move((row, column), (row + 1, column + 1), self.board))
+                elif (row + 1, column + 1) == self.enpassant_possible:
+                    moves.append(Move((row, column), (row + 1, column + 1), self.board, is_enpassant_move=True))
 
     def get_rook_moves(self, row, column, moves):
         directions = ((-1, 0), (0, -1), (1, 0), (0, 1))
@@ -190,6 +275,32 @@ class BoardState():
                 elif not self.whiteToMove and not end_piece.islower():
                     moves.append(Move((row, column), (end_row, end_column), self.board))
 
+    def get_castle_moves(self, row, column, moves):
+        if self.square_under_attack(row, column):
+            return
+        if (self.whiteToMove and self.current_castling_right.wks) or (not self.whiteToMove and self.current_castling_right.bks):
+            self.get_kingside_castle_moves(row, column, moves)
+        if (self.whiteToMove and self.current_castling_right.wqs) or (not self.whiteToMove and self.current_castling_right.bqs):
+            self.get_queenside_castle_moves(row, column, moves)
+
+    def get_kingside_castle_moves(self, row, column, moves):
+        if self.board[row][column+1] == "_" and self.board[row][column+2] == "_":
+            if not self.square_under_attack(row, column+1) and not self.square_under_attack(row, column+2):
+                moves.append(Move((row, column), (row, column+2), self.board, is_castle_move=True))
+
+    def get_queenside_castle_moves(self, row, column, moves):
+        if self.board[row][column-1] == "_" and self.board[row][column-2] == "_" and self.board[row][column-3]:
+            if not self.square_under_attack(row, column-1) and not self.square_under_attack(row, column-2):
+                moves.append(Move((row, column), (row, column-2), self.board, is_castle_move=True))
+
+
+class CastlingRights():
+    def __init__(self, wks, bks, wqs, bqs):
+        self.wks = wks
+        self.bks = bks
+        self.wqs = wqs
+        self.bqs = bqs
+
 
 class Move():
     ranks_to_rows = {"1": 7, "2": 6, "3": 5, "4": 4,
@@ -199,13 +310,20 @@ class Move():
                         "e": 4, "f": 5, "g": 6, "h": 7}
     columns_to_files = {v: k for k, v in files_to_columns.items()}
 
-    def __init__(self, start_square, end_square, board):
+    def __init__(self, start_square, end_square, board, is_enpassant_move=False, is_castle_move=False):
         self.start_row = start_square[0]
         self.start_column = start_square[1]
         self.end_row = end_square[0]
         self.end_column = end_square[1]
         self.piece_moved = board[self.start_row][self.start_column]
         self.piece_captured = board[self.end_row][self.end_column]
+        self.is_pawn_promotion = (self.piece_moved == "P" and self.end_row == 0) or (
+                    self.piece_moved == "p" and self.end_row == 7)
+        self.is_enpassant_move = is_enpassant_move
+        if self.is_enpassant_move:
+            self.piece_captured = "P" if self.piece_moved == "p" else "p"
+        self.is_castle_move = is_castle_move
+
         self.move_id = self.start_row * 1000 + self.start_column * 100 + self.end_row * 10 + self.end_column
 
     def __eq__(self, other):
