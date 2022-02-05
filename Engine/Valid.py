@@ -1,3 +1,6 @@
+import copy
+
+
 class BoardState():
     def __init__(self):
         # Plansza 8x8, lista 2d, czarne figury oznaczone są małymi literami, białe figury oznaczone są wielkimi literami
@@ -78,7 +81,8 @@ class BoardState():
                 self.enpassant_possible = ()
 
             self.castle_rights_log.pop()
-            self.current_castling_right = self.castle_rights_log[-1]
+            self.current_castling_right = copy.deepcopy(self.castle_rights_log[-1])
+
             if move.is_castle_move:
                 if move.end_column - move.start_column == 2:
                     self.board[move.end_row][move.end_column+1] = self.board[move.end_row][move.end_column-1]
@@ -105,6 +109,18 @@ class BoardState():
                 if move.start_column == 0:
                     self.current_castling_right.bqs = False
                 elif move.start_column == 7:
+                    self.current_castling_right.bks = False
+        if move.piece_captured == "R":
+            if move.end_row == 7:
+                if move.end_column == 0:
+                    self.current_castling_right.wqs = False
+                elif move.end_column == 7:
+                    self.current_castling_right.wks = False
+        elif move.piece_captured == "r":
+            if move.end_row == 0:
+                if move.end_column == 0:
+                    self.current_castling_right.bqs = False
+                elif move.end_column == 7:
                     self.current_castling_right.bks = False
 
     def get_valid_moves(self):
@@ -289,7 +305,7 @@ class BoardState():
                 moves.append(Move((row, column), (row, column+2), self.board, is_castle_move=True))
 
     def get_queenside_castle_moves(self, row, column, moves):
-        if self.board[row][column-1] == "_" and self.board[row][column-2] == "_" and self.board[row][column-3]:
+        if self.board[row][column-1] == "_" and self.board[row][column-2] == "_" and self.board[row][column-3] == "_":
             if not self.square_under_attack(row, column-1) and not self.square_under_attack(row, column-2):
                 moves.append(Move((row, column), (row, column-2), self.board, is_castle_move=True))
 
