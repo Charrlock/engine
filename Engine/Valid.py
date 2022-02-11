@@ -91,6 +91,9 @@ class BoardState():
                     self.board[move.end_row][move.end_column-2] = self.board[move.end_row][move.end_column+1]
                     self.board[move.end_row][move.end_column + 1] = "_"
 
+            self.checkmate = False
+            self.stalemate = False
+
     def update_castle_rights(self, move):
         if move.piece_moved == "K":
             self.current_castling_right.wks = False

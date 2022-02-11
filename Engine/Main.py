@@ -75,11 +75,12 @@ def main():
     player_white = True
     player_black = False
     while running:
+        human_turn = (game_state.whiteToMove and player_white) or ( not game_state.whiteToMove and player_black)
         for e in p.event.get():
             if e.type == p.QUIT:
                 running = False
             elif e.type == p.MOUSEBUTTONDOWN:
-                if not game_over:
+                if not game_over and human_turn:
                     mouse_position = p.mouse.get_pos()
                     row = mouse_position[1]//SQUARE_SIZE
                     column = mouse_position[0]//SQUARE_SIZE
@@ -103,6 +104,7 @@ def main():
             elif e.type == p.KEYDOWN:
                 if e.key == p.K_z:
                     game_state.undo_move()
+                    game_state.undo_move()
                     move_made = True
                 if e.key == p.K_r:
                     game_state = Valid.BoardState()
@@ -111,6 +113,13 @@ def main():
                     clicks = []
                     move_made = False
                     game_over = False
+
+        if not game_over and not human_turn:
+            ai_move = Engine.find_best_min_max_move(game_state, valid_moves)
+            if ai_move is None:
+                ai_move = Engine.find_random_move(valid_moves)
+            game_state.make_move(ai_move)
+            move_made = True
 
         if move_made:
             valid_moves = game_state.get_valid_moves()
