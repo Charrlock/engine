@@ -11,6 +11,8 @@ DIMENSIONS = 8
 SQUARE_SIZE = HEIGHT // DIMENSIONS
 MAX_FPS = 12
 IMAGE = {}
+MOVE_LOG_PANEL_WIDTH = 160
+MOVE_LOG_PANEL_HEIGHT = HEIGHT
 
 
 def load_images():
@@ -55,13 +57,34 @@ def draw_board(screen, board):
 
 def draw_text(screen, text):
     font = p.font.SysFont("Helvetica", 32, True, True)
-    text_object = font.render(text, 0, p.Color('Black'))
+    text_object = font.render(text, False, p.Color('Black'))
     text_location = p.Rect(0, 0, WIDTH, HEIGHT).move(WIDTH/2 - text_object.get_width()/2, HEIGHT/2 - text_object.get_height()/2)
     screen.blit(text_object, text_location)
 
 
+def draw_move_log(screen, game_state, font):
+    move_log_area = p.Rect(WIDTH, 0, MOVE_LOG_PANEL_WIDTH, MOVE_LOG_PANEL_HEIGHT)
+    p.draw.rect(screen, p.Color("Grey"), move_log_area)
+    move_log = game_state.moveLog
+    move_texts = move_log
+    move_texts = []
+    for i in range(0, len(move_log), 2):
+        move_string = str(i//2 + 1) + ". " + str(move_log[i]) + " "
+        if i + 1 < len(move_log):
+            move_string += str(move_log[i+1])
+        move_texts.append(move_string)
+    padding = 5
+    line_spacing = 2
+    textY = padding
+    for i in range(len(move_texts)):
+        text = move_texts[i]
+        text_object = font.render(text, True, p.Color('Black'))
+        text_location = move_log_area.move(padding, textY)
+        screen.blit(text_object, text_location)
+        textY += text_object.get_height() + line_spacing
+
 def main():
-    screen = p.display.set_mode((WIDTH, HEIGHT))
+    screen = p.display.set_mode((WIDTH + MOVE_LOG_PANEL_WIDTH, HEIGHT))
     screen.fill(p.Color("white"))
     load_images()
     clock = p.time.Clock()
@@ -73,7 +96,8 @@ def main():
     running = True
     game_over = False
     player_white = True
-    player_black = False
+    player_black = True
+    move_log_font = p.font.SysFont("Helvetica", 18, False, False)
     while running:
         human_turn = (game_state.whiteToMove and player_white) or ( not game_state.whiteToMove and player_black)
         for e in p.event.get():
@@ -84,7 +108,7 @@ def main():
                     mouse_position = p.mouse.get_pos()
                     row = mouse_position[1]//SQUARE_SIZE
                     column = mouse_position[0]//SQUARE_SIZE
-                    if square_selected == (row, column):
+                    if square_selected == (row, column) or column >= 8:
                         square_selected = ()
                         clicks = []
                     else:
@@ -104,7 +128,8 @@ def main():
             elif e.type == p.KEYDOWN:
                 if e.key == p.K_z:
                     game_state.undo_move()
-                    game_state.undo_move()
+                    if not player_white and not player_black:
+                        game_state.undo_move()
                     move_made = True
                 if e.key == p.K_r:
                     game_state = Valid.BoardState()
@@ -115,7 +140,7 @@ def main():
                     game_over = False
 
         if not game_over and not human_turn:
-            ai_move = Engine.find_best_min_max_move(game_state, valid_moves)
+            ai_move = Engine.find_best_move(game_state, valid_moves)
             if ai_move is None:
                 ai_move = Engine.find_random_move(valid_moves)
             game_state.make_move(ai_move)
@@ -127,6 +152,7 @@ def main():
 
         draw_board(screen, game_state.board)
         highlight_squares(screen, game_state, valid_moves, square_selected)
+        draw_move_log(screen, game_state, move_log_font)
 
         if game_state.checkmate:
             game_over = True

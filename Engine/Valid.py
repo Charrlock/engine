@@ -23,6 +23,7 @@ class BoardState():
         self.checkmate = False
         self.stalemate = False
         self.enpassant_possible = False
+        self.enpassant_possible_log = [self.enpassant_possible]
         self.current_castling_right = CastlingRights(True, True, True, True)
         self.castle_rights_log = [CastlingRights(self.current_castling_right.wks, self.current_castling_right.bks,
                                                  self.current_castling_right.wqs, self.current_castling_right.bqs)]
@@ -59,6 +60,8 @@ class BoardState():
                 self.board[move.end_row][move.end_column+1] = self.board[move.end_row][move.end_column-2]
                 self.board[move.end_row][move.end_column-2] = "_"
 
+        self.enpassant_possible_log.append(self.enpassant_possible)
+
         self.update_castle_rights(move)
         self.castle_rights_log.append(CastlingRights(self.current_castling_right.wks, self.current_castling_right.bks,
                                                      self.current_castling_right.wqs, self.current_castling_right.bqs))
@@ -76,9 +79,9 @@ class BoardState():
             if move.is_enpassant_move:
                 self.board[move.end_row][move.end_column] = "_"
                 self.board[move.start_row][move.end_column] = move.piece_captured
-                self.enpassant_possible = (move.end_row, move.end_column)
-            if (move.piece_moved == "p" or move.piece_moved == "P") and abs(move.start_row - move.end_row) == 2:
-                self.enpassant_possible = ()
+
+            self.enpassant_possible_log.pop()
+            self.enpassant_possible = self.enpassant_possible_log[-1]
 
             self.castle_rights_log.pop()
             self.current_castling_right = copy.deepcopy(self.castle_rights_log[-1])
@@ -127,9 +130,6 @@ class BoardState():
                     self.current_castling_right.bks = False
 
     def get_valid_moves(self):
-        for log in self.castle_rights_log:
-            print(log.wks, log.bks, log.wqs, log.bqs, end=", ")
-        print()
         temp_enpassant_possible = self.enpassant_possible
         temp_castle_rights = CastlingRights(self.current_castling_right.wks, self.current_castling_right.bks,
                                             self.current_castling_right.wqs, self.current_castling_right.bqs)
@@ -342,7 +342,7 @@ class Move():
         if self.is_enpassant_move:
             self.piece_captured = "P" if self.piece_moved == "p" else "p"
         self.is_castle_move = is_castle_move
-
+        self.is_capture_move = self.piece_captured != "_"
         self.move_id = self.start_row * 1000 + self.start_column * 100 + self.end_row * 10 + self.end_column
 
     def __eq__(self, other):
@@ -354,3 +354,25 @@ class Move():
 
     def get_chess_notation(self):
         return self.get_rank_file(self.start_row, self.start_column) + self.get_rank_file(self.end_row, self.end_column)
+
+    def __str__(self):
+        if self.is_castle_move:
+            return "O-O" if self.end_column == 6 else "O-O-O"
+        end_square = self.get_rank_file(self.end_row, self.end_column)
+        if self.piece_moved == "p" or self.piece_moved == "P":
+            if self.is_capture_move:
+                if self.is_pawn_promotion:
+                    return self.columns_to_files[self.start_column] + "x" + end_square + "=Q"
+                else:
+                    return self.columns_to_files[self.start_column] + "x" + end_square
+            elif self.is_pawn_promotion:
+                return end_square + "=Q"
+            else:
+                return end_square
+
+        move_string = self.piece_moved.upper()
+        if self.is_capture_move:
+            move_string += "x"
+        return move_string + end_square
+
+
