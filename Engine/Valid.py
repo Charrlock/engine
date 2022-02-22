@@ -3,28 +3,39 @@ import copy
 
 class BoardState():
     def __init__(self):
-        # Plansza 8x8, lista 2d, czarne figury oznaczone są małymi literami, białe figury oznaczone są wielkimi literami
-        # R/r - wieża, N/n - skoczek, B/b - goniec, Q/q - królowa, K/k - król, "_" - puste pole
-        self.board = [
-            ["r", "n", "b", "q", "k", "b", "n", "r"],
-            ["p", "p", "p", "p", "p", "p", "p", "p"],
-            ["_", "_", "_", "_", "_", "_", "_", "_"],
-            ["_", "_", "_", "_", "_", "_", "_", "_"],
-            ["_", "_", "_", "_", "_", "_", "_", "_"],
-            ["_", "_", "_", "_", "_", "_", "_", "_"],
-            ["P", "P", "P", "P", "P", "P", "P", "P"],
-            ["R", "N", "B", "Q", "K", "B", "N", "R"]]
+        # Plansza 8x8, lista 2d, czarne figury oznaczone są małymi literami,
+        # białe figury oznaczone są wielkimi literami
+        # R/r - wieża, N/n - skoczek, B/b - goniec,
+        # Q/q - królowa, K/k - król, "_" - puste pole
+        # self.board = [
+        #     ["r", "n", "b", "q", "k", "b", "n", "r"],
+        #     ["p", "p", "p", "p", "p", "p", "p", "p"],
+        #     ["_", "_", "_", "_", "_", "_", "_", "_"],
+        #     ["_", "_", "_", "_", "_", "_", "_", "_"],
+        #     ["_", "_", "_", "_", "_", "_", "_", "_"],
+        #     ["_", "_", "_", "_", "_", "_", "_", "_"],
+        #     ["P", "P", "P", "P", "P", "P", "P", "P"],
+        #     ["R", "N", "B", "Q", "K", "B", "N", "R"]]
 
-        self.moveFunctions = {}
+        self.board = [
+            ["r", "_", "_", "q", "r", "_", "k", "_"],
+            ["_", "b", "p", "n", "_", "p", "_", "p"],
+            ["_", "p", "_", "_", "_", "b", "p", "_"],
+            ["p", "_", "_", "_", "p", "_", "_", "_"],
+            ["P", "_", "P", "_", "_", "_", "_", "_"],
+            ["_", "_", "_", "_", "P", "N", "_", "P"],
+            ["_", "P", "Q", "_", "B", "P", "P", "B"],
+            ["R", "_", "_", "R", "_", "_", "K", "_"]]
+
         self.moveLog = []
         self.whiteToMove = True
-        self.white_king_location = (7, 4)
-        self.black_king_location = (0, 4)
+        self.white_king_location = (7, 6) #(7, 4)
+        self.black_king_location = (0, 6) #(0, 4)
         self.checkmate = False
         self.stalemate = False
         self.enpassant_possible = False
         self.enpassant_possible_log = [self.enpassant_possible]
-        self.current_castling_right = CastlingRights(True, True, True, True)
+        self.current_castling_right = CastlingRights(False, False, False, False)
         self.castle_rights_log = [CastlingRights(self.current_castling_right.wks, self.current_castling_right.bks,
                                                  self.current_castling_right.wqs, self.current_castling_right.bqs)]
 
@@ -61,7 +72,6 @@ class BoardState():
                 self.board[move.end_row][move.end_column-2] = "_"
 
         self.enpassant_possible_log.append(self.enpassant_possible)
-
         self.update_castle_rights(move)
         self.castle_rights_log.append(CastlingRights(self.current_castling_right.wks, self.current_castling_right.bks,
                                                      self.current_castling_right.wqs, self.current_castling_right.bqs))

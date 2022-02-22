@@ -1,5 +1,4 @@
 import pygame as p
-import chess
 import Valid
 import Engine
 from multiprocessing import Process, Queue
@@ -101,8 +100,8 @@ def main():
     clicks = []
     running = True
     game_over = False
-    player_white = True
-    player_black = False
+    player_white = False
+    player_black = True
     ai_thinking = False
     move_finder_process = None
     move_log_font = p.font.SysFont("Helvetica", 12, False, False)
@@ -135,7 +134,7 @@ def main():
                         if not move_made:
                             clicks = [square_selected]
             elif e.type == p.KEYDOWN:
-                if e.key == p.K_z:
+                if e.key == p.K_c:
                     game_state.undo_move()
                     square_selected = ()
                     clicks = []
@@ -164,7 +163,8 @@ def main():
             if not ai_thinking:
                 ai_thinking = True
                 return_queue = Queue()
-                move_finder_process = Process(target=Engine.find_best_move, args=(game_state, valid_moves, return_queue))
+                move_finder_process = Process(target=Engine.find_best_move,
+                                              args=(game_state, valid_moves, return_queue))
                 move_finder_process.start()
             if not move_finder_process.is_alive():
                 ai_move = return_queue.get()

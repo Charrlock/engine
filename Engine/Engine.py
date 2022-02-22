@@ -3,13 +3,13 @@ import random
 piece_values = {"K": 60000, "k": 60000,
                 "Q": 900, "q": 900,
                 "R": 500, "r": 500,
-                "B": 300, "b": 300,
-                "N": 300, "n": 300,
+                "B": 400, "b": 300,
+                "N": 300, "n": 400,
                 "P": 100, "p": 100}
 
 white_pawn_scores = [[0, 0, 0, 0, 0, 0, 0, 0],
-                     [78, 83, 86, 73, 102, 82, 85, 90],
-                     [7, 29, 21, 44, 40, 31, 44, 7],
+                     [278, 283, 286, 273, 302, 282, 285, 290],
+                     [117, 129, 121, 144, 140, 131, 144, 117],
                      [-17, 16, -2, 15, 14, 0, 15, -13],
                      [-26, 3, 10, 9, 6, 1, 0, -23],
                      [-22, 9, 5, -11, -10, -2, 3, -19],
@@ -21,25 +21,25 @@ black_pawn_scores = [[0, 0, 0, 0, 0, 0, 0, 0],
                      [-22, 9, 5, -11, -10, -2, 3, -19],
                      [-26, 3, 10, 9, 6, 1, 0, -23],
                      [-17, 16, -2, 15, 14, 0, 15, -13],
-                     [7, 29, 21, 44, 40, 31, 44, 7],
-                     [78, 83, 86, 73, 102, 82, 85, 90],
+                     [117, 129, 121, 144, 140, 131, 144, 117],
+                     [278, 283, 286, 273, 302, 282, 285, 290],
                      [0, 0, 0, 0, 0, 0, 0, 0]]
 
 white_knight_scores = [[-66, -53, -75, -75, -10, -55, -58, -70],
                        [-3, -6, 100, -36, 4, 62, -4, -14],
-                       [10, 67, 1, 74, 73, 27, 62, -2],
+                       [10, 37, 71, 74, 73, 77, 32, -2],
                        [24, 24, 45, 37, 33, 41, 25, 17],
                        [-1, 5, 31, 21, 22, 35, 2, 0],
                        [-18, 10, 13, 22, 18, 15, 11, -14],
-                       [-23, -15, 2, 0, 2, 0, -23, -20],
+                       [-23, -15, 0, 10, 12, 0, -23, -20],
                        [-74, -23, -26, -24, -19, -35, -22, -69]]
 
 black_knight_scores = [[-74, -23, -26, -24, -19, -35, -22, -69],
-                       [-23, -15, 2, 0, 2, 0, -23, -20],
+                       [-23, -15, 2, 10, 12, 0, -23, -20],
                        [-18, 10, 13, 22, 18, 15, 11, -14],
                        [-1, 5, 31, 21, 22, 35, 2, 0],
                        [24, 24, 45, 37, 33, 41, 25, 17],
-                       [10, 67, 1, 74, 73, 27, 62, -2],
+                       [10, 37, 71, 74, 73, 77, 32, -2],
                        [-3, -6, 100, -36, 4, 62, -4, -14],
                        [-66, -53, -75, -75, -10, -55, -58, -70]]
 
@@ -140,7 +140,7 @@ piece_position_scores = {"P": white_pawn_scores, "p": black_pawn_scores,
                          "Q": white_queen_scores, "q": black_queen_scores,
                          "K": white_king_early_scores, "k": black_king_early_scores}
 
-DEPTH = 3
+DEPTH = 4
 
 
 def find_random_move(valid_moves):
@@ -179,6 +179,51 @@ def find_move_nega_max_alpha_beta(game_state, valid_moves, depth, alpha, beta, t
     return max_score
 
 
+def influence_figures(piece, pawns_left):
+    if pawns_left >= 13:
+        if piece.upper() == "Q":
+            return 0.9
+        if piece.upper() == "R":
+            return 0.85
+        if piece.upper() == "N":
+            return 1.1
+        else:
+            return 1
+    elif pawns_left >= 9:
+        if piece.upper() == "Q":
+            return 0.95
+        if piece.upper() == "R":
+            return 0.90
+        if piece.upper() == "N":
+            return 1.1
+        if piece.upper() == "B":
+            return 1.05
+        else:
+            return 1
+    elif pawns_left >= 5:
+        if piece.upper() == "Q":
+            return 1.2
+        if piece.upper() == "R":
+            return 1.1
+        if piece.upper() == "N":
+            return 0.9
+        if piece.upper() == "B":
+            return 1.15
+        else:
+            return 1
+    else:
+        if piece.upper() == "Q":
+            return 1.3
+        if piece.upper() == "R":
+            return 1.1
+        if piece.upper() == "N":
+            return 0.85
+        if piece.upper() == "B":
+            return 1.2
+        else:
+            return 1
+
+
 def score_board(game_state):
     if game_state.checkmate:
         if game_state.whiteToMove:
@@ -189,6 +234,13 @@ def score_board(game_state):
         return 0
 
     score = 0
+    pawns_left = 0
+    for row in range(len(game_state.board)):
+        for column in range(len(game_state.board[row])):
+            square = game_state.board[row][column]
+            if square == "p" or square == "P":
+                pawns_left += 1
+
     for row in range(len(game_state.board)):
         for column in range(len(game_state.board[row])):
             square = game_state.board[row][column]
@@ -196,7 +248,8 @@ def score_board(game_state):
                 piece_positional_score = piece_position_scores[square][row][column]
 
             if square.isupper():
-                score += piece_values[square] + piece_positional_score
+                score += (piece_values[square] * influence_figures(square, pawns_left) + piece_positional_score)
             elif square.islower():
-                score -= piece_values[square] + piece_positional_score
+                score -= (piece_values[square] * influence_figures(square, pawns_left) + piece_positional_score)
+    pawns_left = 0
     return score
